@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vex Bot — AI Assistant</title>
+  <style>
+    :root {
+      --bg-main: #0b0b0d;
+      --bg-sidebar: #121215;
+      --bg-card: #18181c;
+      --bg-hover: #222228;
+      --border: #27272e;
+      --accent: #2ee58b;
+      --accent-dim: rgba(46, 229, 139, 0.14);
+      --text-main: #f4f4f5;
+      --text-sub: #a1a1aa;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+      --font-mono: "Fira Code", Consolas, Monaco, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-main);
+      color: var(--text-main);
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      transition: transform 0.25s ease;
+      z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 18px; }
+    .logo-wrap {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: #0a0a0a; border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-name { font-size: 1.1rem; font-weight: 700; }
+    .brand-badge {
+      font-size: 0.7rem; color: var(--accent); background: var(--accent-dim);
+      padding: 2px 7px; border-radius: 999px; font-weight: 600; margin-left: auto;
+    }
+    .new-chat-btn {
+      width: 100%; padding: 11px 14px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .new-chat-btn:hover { border-color: var(--accent); background: var(--bg-hover); }
+    .new-chat-btn span.plus { color: var(--accent); font-size: 1.1rem; font-weight: 700; }
+    .history-title { font-size: 0.75rem; color: var(--text-sub); margin: 22px 6px 10px; }
+    .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .history-item {
+      padding: 9px 10px; border-radius: 8px; font-size: 0.86rem; color: var(--text-sub);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .history-item.active { background: var(--bg-hover); color: var(--text-main); }
+    .sidebar-footer {
+      padding-top: 14px; border-top: 1px solid var(--border);
+      font-size: 0.8rem; color: var(--text-sub); display: flex; align-items: center; gap: 8px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    }
+    .main { flex: 1; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+    .topbar {
+      height: 56px; padding: 0 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(11, 11, 13, 0.9);
+    }
+    .menu-btn {
+      display: none; background: none; border: 1px solid var(--border); color: var(--text-main);
+      border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 1rem;
+    }
+    .topbar-title { font-size: 0.92rem; color: var(--text-sub); }
+    .topbar-title strong { color: var(--text-main); }
+    .chat-container {
+      flex: 1; overflow-y: auto; padding: 24px 16px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .chat-inner { width: 100%; max-width: 780px; display: flex; flex-direction: column; gap: 22px; }
+    .welcome { margin: auto 0; text-align: center; padding: 24px 12px; max-width: 680px; width: 100%; }
+    .welcome-logo {
+      width: 84px; height: 84px; margin: 0 auto 20px; border-radius: 20px;
+      background: #0a0a0a; border: 1px solid var(--border);
+      box-shadow: 0 0 32px rgba(46, 229, 139, 0.16);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .welcome-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .welcome h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 10px; }
+    .welcome h1 span { color: var(--accent); }
+    .welcome p { color: var(--text-sub); font-size: 0.94rem; margin-bottom: 24px; }
+    .quick-prompts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; text-align: left; }
+    .prompt-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 13px 15px; cursor: pointer; transition: 0.2s;
+    }
+    .prompt-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+    .prompt-card .title { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+    .prompt-card .desc { font-size: 0.78rem; color: var(--text-sub); }
+    .message { display: flex; gap: 12px; align-items: flex-start; }
+    .message.user { justify-content: flex-end; }
+    .user-bubble {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 11px 15px; border-radius: 16px 16px 4px 16px;
+      max-width: 80%; font-size: 0.94rem; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .bot-avatar {
+      width: 34px; height: 34px; border-radius: 9px; background: #0a0a0a;
+      border: 1px solid var(--border); overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bot-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .bot-content {
+      flex: 1; font-size: 0.95rem; line-height: 1.7;
+      white-space: pre-wrap; word-break: break-word; padding-top: 3px;
+    }
+    .bot-content code {
+      font-family: var(--font-mono); background: #1f1f25; color: var(--accent);
+      padding: 2px 6px; border-radius: 5px; font-size: 0.85rem;
+    }
+    .bot-content pre {
+      background: #141418; border: 1px solid var(--border); border-radius: 10px;
+      padding: 13px; margin: 10px 0; overflow-x: auto; white-space: pre;
+    }
+    .bot-content pre code { background: none; color: #e4e4e7; padding: 0; }
+    .input-area {
+      padding: 12px 16px 18px; display: flex; flex-direction: column; align-items: center;
+      background: linear-gradient(transparent, var(--bg-main) 25%);
+    }
+    .input-box {
+      width: 100%; max-width: 780px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 9px 11px 9px 15px; display: flex; align-items: flex-end; gap: 10px;
+    }
+    .input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    textarea {
+      flex: 1; background: none; border: none; outline: none; color: var(--text-main);
+      font-family: var(--font-sans); font-size: 0.95rem; line-height: 1.5;
+      resize: none; max-height: 140px; padding: 4px 0;
+    }
+    textarea::placeholder { color: var(--text-sub); }
+    .send-btn {
+      width: 38px; height: 38px; border-radius: 10px; border: none;
+      background: var(--accent); color: #07140d; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .send-btn:disabled { background: #2b2b33; color: #666; cursor: not-allowed; }
+    .footer-note { margin-top: 8px; font-size: 0.74rem; color: var(--text-sub); }
+    .typing { display: inline-flex; gap: 5px; padding: 8px 0; }
+    .typing span {
+      width: 7px; height: 7px; background: var(--accent); border-radius: 50%;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .menu-btn { display: inline-block; }
+      .quick-prompts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo-wrap">
+        <img src="logo.png" alt="Vex Bot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+        <svg style="display:none;" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M7 7L3 12L7 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M17 7L21 12L17 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M12 8V16M8 12H16" stroke="#2EE58B" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">Vex Bot</span>
+      <span class="brand-badge">AI</span>
+    </div>
+    <button class="new-chat-btn" onclick="startNewChat()">
+      <span class="plus">+</span> 새 대화 시작
+    </button>
+    <div class="history-title">현재 대화</div>
+    <div class="history-list" id="historyList">
+      <div class="history-item active">새로운 대화</div>
+    </div>
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>
+      <span>Vex Bot 온라인</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="topbar-title"><strong>Vex Bot</strong> · AI Assistant</div>
+      <div style="width: 32px;"></div>
+    </header>
+
+    <section class="chat-container" id="chatContainer">
+      <div class="welcome" id="welcomeScreen">
+        <div class="welcome-logo">
+          <img src="logo.png" alt="Vex Bot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+          <svg style="display:none;" width="48" height="48" viewBox="0 0 24 24" fill="none">
+            <path d="M7 7L3 12L7 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M17 7L21 12L17 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M12 8V16M8 12H16" stroke="#2EE58B" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1>안녕하세요, <span>Vex Bot</span>입니다.</h1>
+        <p>무엇이든 물어보세요. 코딩, 아이디어 기획, 글쓰기를 도와드릴게요.</p>
+        <div class="quick-prompts">
+          <div class="prompt-card" onclick="usePrompt('파이썬으로 간단한 계산기 코드 짜줘')">
+            <div class="title">💻 코드 작성하기</div>
+            <div class="desc">파이썬으로 간단한 계산기 코드 짜줘</div>
+          </div>
+          <div class="prompt-card" onclick="usePrompt('오늘 저녁 메뉴 추천해줘')">
+            <div class="title">🍽️ 메뉴 추천</div>
+            <div class="desc">오늘 저녁 메뉴 추천해줘</div>
+          </div>
+          <div class="prompt-card" onclick="usePrompt('HTML과 CSS의 차이를 쉽게 설명해줘')">
+            <div class="title">📚 개념 쉽게 배우기</div>
+            <div class="desc">HTML과 CSS의 차이를 쉽게 설명해줘</div>
+          </div>
+          <div class="prompt-card" onclick="usePrompt('생산성을 높이는 3가지 팁 알려줘')">
+            <div class="title">💡 아이디어 얻기</div>
+            <div class="desc">생산성을 높이는 3가지 팁 알려줘</div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-inner" id="chatMessages" style="display: none;"></div>
+    </section>
+
+    <footer class="input-area">
+      <div class="input-box">
+        <textarea id="userInput" rows="1" placeholder="Vex Bot에게 메시지 보내기..."></textarea>
+        <button class="send-btn" id="sendBtn" onclick="handleSend()" title="전송">➤</button>
+      </div>
+      <div class="footer-note">Powered by Vex Bot</div>
+    </footer>
+  </main>
+
+  <script>
+    const chatContainer = document.getElementById("chatContainer");
+    const chatMessages = document.getElementById("chatMessages");
+    const welcomeScreen = document.getElementById("welcomeScreen");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const historyList = document.getElementById("historyList");
+    const sidebar = document.getElementById("sidebar");
+
+    let isFirstMessage = true;
+    let chatHistory = [];
+
+    function toggleSidebar() { sidebar.classList.toggle("open"); }
+
+    userInput.addEventListener("input", () => {
+      userInput.style.height = "auto";
+      userInput.style.height = Math.min(userInput.scrollHeight, 140) + "px";
+    });
+
+    userInput.addEventListener("keydown", (e) => {
+      if (e.isComposing) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+
+    function usePrompt(text) {
+      userInput.value = text;
+      handleSend();
+    }
+
+    function startNewChat() {
+      chatMessages.innerHTML = "";
+      chatMessages.style.display = "none";
+      welcomeScreen.style.display = "block";
+      isFirstMessage = true;
+      chatHistory = [];
+      sidebar.classList.remove("open");
+    }
+
+    function formatMessage(text) {
+      let safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      safe = safe.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
+      safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
+      safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      return safe;
+    }
+
+    function avatarHtml() {
+      return `
+        <div class="bot-avatar">
+          <img src="logo.png" alt="Vex" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+          <svg style="display:none;" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M7 7L3 12L7 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M17 7L21 12L17 17" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M12 8V16M8 12H16" stroke="#2EE58B" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>`;
+    }
+
+    function addUserMessage(text) {
+      const div = document.createElement("div");
+      div.className = "message user";
+      div.innerHTML = `<div class="user-bubble">${formatMessage(text)}</div>`;
+      chatMessages.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function addBotTyping() {
+      const div = document.createElement("div");
+      div.className = "message bot";
+      div.id = "typingIndicator";
+      div.innerHTML = `${avatarHtml()}<div class="bot-content"><div class="typing"><span></span><span></span><span></span></div></div>`;
+      chatMessages.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function addBotMessage(text) {
+      const typing = document.getElementById("typingIndicator");
+      if (typing) typing.remove();
+      const div = document.createElement("div");
+      div.className = "message bot";
+      div.innerHTML = `${avatarHtml()}<div class="bot-content">${formatMessage(text)}</div>`;
+      chatMessages.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    async function handleSend() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      if (isFirstMessage) {
+        welcomeScreen.style.display = "none";
+        chatMessages.style.display = "flex";
+        isFirstMessage = false;
+        const active = historyList.querySelector(".history-item.active");
+        if (active) active.textContent = text;
+      }
+
+      userInput.value = "";
+      userInput.style.height = "auto";
+      sendBtn.disabled = true;
+
+      addUserMessage(text);
+      addBotTyping();
+
+      chatHistory.push({ role: "user", parts: [{ text }] });
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ history: chatHistory }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          chatHistory.pop();
+          addBotMessage("⚠️ 오류가 발생했어요: " + (data.error || "다시 시도해 주세요."));
+        } else {
+          chatHistory.push({ role: "model", parts: [{ text: data.reply }] });
+          addBotMessage(data.reply);
+        }
+      } catch (e) {
+        chatHistory.pop();
+        addBotMessage("⚠️ 서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.");
+      }
+
+      sendBtn.disabled = false;
+      userInput.focus();
+    }
+  </script>
+</body>
+            </html>
